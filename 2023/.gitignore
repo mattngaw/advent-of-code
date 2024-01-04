@@ -2,4 +2,5 @@
 !*/
 
 !.gitignore
-!**/day*/bin/*.ml
+!ocaml/day*/bin/*.ml
+!rust/day*/src/*.rs
