@@ -1,7 +1,5 @@
 let file : string = "input.txt"
 
-let (>>) f g = fun x -> g(f(x))
-
 let explode (s : string) : char list = 
     List.init (String.length s) (String.get s)
 
@@ -18,15 +16,16 @@ let rec first_last (xs : 'a list) : 'a * 'a =
     | [x1;x2] -> (x1,x2) 
     | x::_::xs -> first_last (x::xs)
 
-let part1 : string list -> int =
-    List.map (
-        explode >>
-        List.filter is_digit >>
-        List.map digit_to_int >>
-        first_last >>
-        (fun (x1, x2) -> x1 * 10 + x2)
-    ) >>
-    List.fold_left ( + ) 0
+let part1 (lines : string list) : int =
+    lines
+    |> List.map (fun line ->
+        explode line
+        |> List.filter is_digit
+        |> List.map digit_to_int
+        |> first_last
+        |> (fun (x1, x2) -> x1 * 10 + x2)
+    )
+    |> List.fold_left ( + ) 0
 
 let string_to_digits =
     [ ("one", 1)
@@ -58,13 +57,14 @@ let rec find_digits (s : string) : int list =
     | Some((_, digit)) ->
         digit :: next_digits
     
-let part2 : string list -> int =
-    List.map (
-        find_digits >>
-        first_last >>
-        (fun (x1, x2) -> x1 * 10 + x2)
-    ) >>
-    List.fold_left ( + ) 0
+let part2 (lines : string list) : int =
+    lines
+    |> List.map (fun line ->
+        find_digits line
+        |> first_last
+        |> (fun (x1, x2) -> x1 * 10 + x2)
+    )
+    |> List.fold_left ( + ) 0
 
 let () =
     let ic = open_in file in
