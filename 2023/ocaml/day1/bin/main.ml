@@ -17,8 +17,7 @@ let rec first_last (xs : 'a list) : 'a * 'a =
     | x::_::xs -> first_last (x::xs)
 
 let part1 (lines : string list) : int =
-    lines
-    |> List.map (fun line ->
+    lines |> List.map (fun line ->
         explode line
         |> List.filter is_digit
         |> List.map digit_to_int
@@ -58,8 +57,7 @@ let rec find_digits (s : string) : int list =
         digit :: next_digits
     
 let part2 (lines : string list) : int =
-    lines
-    |> List.map (fun line ->
+    lines |> List.map (fun line ->
         find_digits line
         |> first_last
         |> (fun (x1, x2) -> x1 * 10 + x2)
