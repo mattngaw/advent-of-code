@@ -7,29 +7,28 @@
  *)
 
 let solve (filename : string) : int =
-
   In_channel.with_open_text filename In_channel.input_all
-  |> String.trim
-  |> String.split_on_char ','
-  |> List.map (fun r -> 
+  |> String.trim |> String.split_on_char ','
+  |> List.map (fun r ->
       let split = String.split_on_char '-' r in
-      let (lo, hi) = match split with
-        | [l; h] -> (Stdlib.int_of_string l, Stdlib.int_of_string h)
-        | _ -> failwith "expected exactly two"
+      let lo, hi =
+        match split with
+        | [l; h] ->
+            (Stdlib.int_of_string l, Stdlib.int_of_string h)
+        | _ ->
+            failwith "expected exactly two"
       in
       let rec build l h =
-        match (l = h) with
-        | false -> l :: (build (l+1) h)
-        | true -> [h]
+        match l = h with false -> l :: build (l + 1) h | true -> [h]
       in
-      build lo hi)
+      build lo hi )
   |> List.flatten
   |> List.map Stdlib.string_of_int
   |> List.filter (fun s ->
       let len = String.length s in
       let even = len mod 2 = 0 in
-      let half1 = String.sub s 0 (len/2) in
-      let half2 = String.sub s (len/2) (len/2) in
-      even && half1 = half2)
+      let half1 = String.sub s 0 (len / 2) in
+      let half2 = String.sub s (len / 2) (len / 2) in
+      even && half1 = half2 )
   |> List.map Stdlib.int_of_string
-  |> List.fold_left (+) 0
+  |> List.fold_left ( + ) 0
