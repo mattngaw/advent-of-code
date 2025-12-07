@@ -1,10 +1,14 @@
 /*
- * @file part1a.c
- * @brief A single-threaded, convolution-based implementation of AoC 2025 Day 4 Part 1
+ * @file part1b.c
+ * @brief A zero-padded improvement over part1a that removes the conditional from the inner loop
  *
- * This implementation uses a convolution to transform the input image into an image describing the
- * number of rolls surrounding each roll. This intermediate image is then scanned for rolls with
- * less than four neighbors.
+ * The previous implementation requires a complex conditional check in the innermost (and hottest)
+ * loop to ensure that the exterior of the image is interpreted as empty space (no rolls).
+ * Surrounding the original image with a perimeter of zeroes allows the inner conditional to be
+ * removed.
+ *
+ * Since the image has now been transformed from NxN to (N+2)x(N+2), the memory access patterns of
+ * some other loops have also changed.
  */
 
 #include <stddef.h>
@@ -45,6 +49,7 @@ NOINLINE char *read(const char *filename, size_t *len) {
 
 NOINLINE T *preprocess(char *map, size_t len, int *inputRows, int *inputCols) {
     int rows, cols;
+    int padded_rows, padded_cols;
     int r, c;
     T *input;
 
@@ -60,25 +65,24 @@ NOINLINE T *preprocess(char *map, size_t len, int *inputRows, int *inputCols) {
             rows++;
     }
 
-    r = 0;
-    c = 0;
-    input = (T *)calloc(rows * cols, sizeof(T));
+    r = 1;
+    c = 1;
+    padded_rows = rows + 2;
+    padded_cols = cols + 2;
+    input = (T *)calloc(padded_rows * padded_cols, sizeof(T));
     for (size_t i = 0; i < len; i++) {
         if (map[i] == '\n') {
-            c = 0;
+            c = 1;
             r++;
         } else {
-            if (map[i] == '@') {
-                input[r * cols + c] = 1;
-            } else {
-                input[r * cols + c] = 0;
-            }
+            if (map[i] == '@')
+                input[r * padded_cols + c] = 1;
             c++;
         }
     }
 
-    *inputRows = rows;
-    *inputCols = cols;
+    *inputRows = padded_rows;
+    *inputCols = padded_cols;
     return input;
 }
 
@@ -103,9 +107,8 @@ NOINLINE T *convolve(T *input, int inputRows, int inputCols, T *kernel, int kern
                     int or = i - centerRow + kr;
                     int oc = j - centerCol + kc;
 
-                    if (or >= 0 && or < outputRows && oc >= 0 && oc < outputCols)
-                        output[i * outputCols + j] +=
-                            input[or * inputCols + oc] * kernel[kr * kernelCols + kc];
+                    output[i * outputCols + j] +=
+                        input[or * inputCols + oc] * kernel[kr * kernelCols + kc];
                 }
             }
         }
