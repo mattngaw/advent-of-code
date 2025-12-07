@@ -1,0 +1,56 @@
+2,3c2,3
+<  * @file part1a.c
+<  * @brief A single-threaded, convolution-based implementation of AoC 2025 Day 4 Part 1
+---
+>  * @file part1b.c
+>  * @brief A zero-padded improvement over part1a that removes the conditional from the inner loop
+5,7c5,11
+<  * This implementation uses a convolution to transform the input image into an image describing the
+<  * number of rolls surrounding each roll. This intermediate image is then scanned for rolls with
+<  * less than four neighbors.
+---
+>  * The previous implementation requires a complex conditional check in the innermost (and hottest)
+>  * loop to ensure that the exterior of the image is interpreted as empty space (no rolls).
+>  * Surrounding the original image with a perimeter of zeroes allows the inner conditional to be
+>  * removed.
+>  *
+>  * Since the image has now been transformed from NxN to (N+2)x(N+2), the memory access patterns of
+>  * some other loops have also changed.
+47a52
+>     int padded_rows, padded_cols;
+63,65c68,72
+<     r = 0;
+<     c = 0;
+<     input = (T *)calloc(rows * cols, sizeof(T));
+---
+>     r = 1;
+>     c = 1;
+>     padded_rows = rows + 2;
+>     padded_cols = cols + 2;
+>     input = (T *)calloc(padded_rows * padded_cols, sizeof(T));
+68c75
+<             c = 0;
+---
+>             c = 1;
+71,75c78,79
+<             if (map[i] == '@') {
+<                 input[r * cols + c] = 1;
+<             } else {
+<                 input[r * cols + c] = 0;
+<             }
+---
+>             if (map[i] == '@')
+>                 input[r * padded_cols + c] = 1;
+80,81c84,85
+<     *inputRows = rows;
+<     *inputCols = cols;
+---
+>     *inputRows = padded_rows;
+>     *inputCols = padded_cols;
+106,108c110,111
+<                     if (or >= 0 && or < outputRows && oc >= 0 && oc < outputCols)
+<                         output[i * outputCols + j] +=
+<                             input[or * inputCols + oc] * kernel[kr * kernelCols + kc];
+---
+>                     output[i * outputCols + j] +=
+>                         input[or * inputCols + oc] * kernel[kr * kernelCols + kc];
