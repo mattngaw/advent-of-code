@@ -1,23 +1,26 @@
 /*
  * @file part1b.c
- * @brief A zero-padded improvement over part1a that removes the conditional from the inner loop
+ * @brief A mostly-branchless improvement over part1a that removes many conditionals, resulting in a
+ * 6x speedup (on my machine)
  *
  * The previous implementation requires a complex conditional check in the innermost (and hottest)
- * loop to ensure that the exterior of the image is interpreted as empty space (no rolls).
+ * convolve loop to ensure that the exterior of the image is interpreted as empty space (no rolls).
  * Surrounding the original image with a perimeter of zeroes allows the inner conditional to be
  * removed.
  *
  * Since the image has now been transformed from NxN to (N+2)x(N+2), the memory access patterns of
  * some other loops have also changed.
+ *
+ * The preprocess function was also rewritten in a branchless way, relying heavily on
+ * bitwise/logical operators and conditional moves.
+ *
+ * The counting of candidate rolls (previously tally) was rolled into the main loop of the convolve
+ * function.
  */
 
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
-
-#define KERNEL_ROWS (3)
-#define KERNEL_COLS (3)
-#define LIMIT (4)
 
 #ifdef DEBUG
 #define NOINLINE __attribute__((noinline))
@@ -25,22 +28,26 @@
 #define NOINLINE
 #endif
 
-typedef int T;
+#define LIMIT (4)
+
+#define KERNEL_ROWS (3)
+#define KERNEL_COLS (3)
+
+typedef unsigned char T;
 
 NOINLINE char *read(const char *filename, size_t *len) {
     FILE *fptr;
     char *map;
-    size_t file_size;
-    size_t bytes_read;
+    size_t fileSize;
 
     fptr = fopen(filename, "rt");
     fseek(fptr, 0, SEEK_END);
-    file_size = ftell(fptr);
+    fileSize = ftell(fptr);
     fseek(fptr, 0, SEEK_SET);
 
-    map = (char *)malloc(file_size + 1);
-    *len = fread(map, sizeof(char), file_size, fptr);
-    map[file_size] = '\0';
+    map = (char *)malloc(fileSize + 1);
+    *len = fread(map, sizeof(char), fileSize, fptr);
+    map[fileSize] = '\0';
 
     fclose(fptr);
 
@@ -49,7 +56,7 @@ NOINLINE char *read(const char *filename, size_t *len) {
 
 NOINLINE T *preprocess(char *map, size_t len, int *inputRows, int *inputCols) {
     int rows, cols;
-    int padded_rows, padded_cols;
+    int paddedRows, paddedCols;
     int r, c;
     T *input;
 
@@ -61,72 +68,54 @@ NOINLINE T *preprocess(char *map, size_t len, int *inputRows, int *inputCols) {
     }
 
     for (size_t i = 0; i < len; i++) {
-        if (map[i] == '\n')
-            rows++;
+        rows += map[i] == '\n';
     }
 
     r = 1;
     c = 1;
-    padded_rows = rows + 2;
-    padded_cols = cols + 2;
-    input = (T *)calloc(padded_rows * padded_cols, sizeof(T));
+    paddedRows = rows + 2;
+    paddedCols = cols + 2;
+    input = (T *)malloc(paddedRows * paddedCols * sizeof(T));
     for (size_t i = 0; i < len; i++) {
-        if (map[i] == '\n') {
-            c = 1;
-            r++;
-        } else {
-            if (map[i] == '@')
-                input[r * padded_cols + c] = 1;
-            c++;
-        }
+        int newline = map[i] == '\n';
+        r += newline;
+        input[r * paddedCols + c] = map[i] == '@';
+        c = newline ? 1 : c + 1;
     }
 
-    *inputRows = padded_rows;
-    *inputCols = padded_cols;
+    *inputRows = paddedRows;
+    *inputCols = paddedCols;
     return input;
 }
 
-NOINLINE T *convolve(T *input, int inputRows, int inputCols, T *kernel, int kernelRows,
-                     int kernelCols) {
-    int outputRows, outputCols;
-    T *output;
+NOINLINE int convolve(T *input, int inputRows, int inputCols) {
     int centerRow, centerCol;
+    int count;
+    int result;
 
-    outputRows = inputRows;
-    outputCols = inputCols;
+    T kernel[KERNEL_ROWS * KERNEL_COLS] = {1, 1, 1, 1, 0, 1, 1, 1, 1};
 
-    output = (T *)calloc(outputRows * outputCols, sizeof(T));
+    centerRow = KERNEL_ROWS / 2;
+    centerCol = KERNEL_COLS / 2;
 
-    centerRow = kernelRows / 2;
-    centerCol = kernelCols / 2;
+    result = 0;
 
-    for (int i = 0; i < inputRows; i++) {
-        for (int j = 0; j < inputCols; j++) {
-            for (int kr = 0; kr < kernelRows; kr++) {
-                for (int kc = 0; kc < kernelCols; kc++) {
-                    int or = i - centerRow + kr;
-                    int oc = j - centerCol + kc;
+    for (int ir = 1; ir < inputRows - 1; ir++) {
+        for (int ic = 1; ic < inputCols - 1; ic++) {
+            count = 0;
+            for (int kr = 0; kr < KERNEL_ROWS; kr++) {
+                for (int kc = 0; kc < KERNEL_COLS; kc++) {
+                    int xr = ir + kr - centerRow;
+                    int xc = ic + kc - centerCol;
 
-                    output[i * outputCols + j] +=
-                        input[or * inputCols + oc] * kernel[kr * kernelCols + kc];
+                    count += input[xr * inputCols + xc] * kernel[kr * KERNEL_COLS + kc];
                 }
             }
+            result += input[ir * inputCols + ic] && count < LIMIT;
         }
     }
 
-    return output;
-}
-
-NOINLINE int tally(T *output, T *input, int outputRows, int outputCols) {
-    int count;
-
-    count = 0;
-    for (int i = 0; i < outputRows * outputCols; i++) {
-        if (output[i] < LIMIT && input[i])
-            count++;
-    }
-
-    return count;
+    return result;
 }
 
 int main(int argc, char *argv[]) {
@@ -136,12 +125,7 @@ int main(int argc, char *argv[]) {
     T *input;
     int inputRows, inputCols;
 
-    T *output;
-    int outputRows, outputCols;
-
-    T *kernel;
-
-    int count;
+    int result;
 
     if (argc != 2) {
         printf("Usage: ./part1a <input-path>\n");
@@ -150,26 +134,14 @@ int main(int argc, char *argv[]) {
 
     const char *filename = argv[1];
 
-    kernel = (T *)malloc(KERNEL_ROWS * KERNEL_COLS * sizeof(T));
-    for (int i = 0; i < KERNEL_ROWS * KERNEL_COLS; i++)
-        kernel[i] = 1;
-    kernel[4] = 0;
-
     map = read(filename, &len);
     input = preprocess(map, len, &inputRows, &inputCols);
+    result = convolve(input, inputRows, inputCols);
 
-    output = convolve(input, inputRows, inputCols, kernel, KERNEL_ROWS, KERNEL_COLS);
-    outputRows = inputRows;
-    outputCols = inputCols;
-
-    count = tally(output, input, outputRows, outputCols);
-
-    printf("%d\n", count);
+    printf("%d\n", result);
 
     free(map);
     free(input);
-    free(output);
-    free(kernel);
 
     return 0;
 }

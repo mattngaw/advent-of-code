@@ -82,30 +82,31 @@ NOINLINE T *preprocess(char *map, size_t len, int *inputRows, int *inputCols) {
     return input;
 }
 
-NOINLINE T *convolve(T *input, int inputRows, int inputCols, T *kernel, int kernelRows,
-                     int kernelCols) {
+NOINLINE T *convolve(T *input, int inputRows, int inputCols) {
     int outputRows, outputCols;
     T *output;
     int centerRow, centerCol;
+
+    T kernel[KERNEL_ROWS * KERNEL_COLS] = {1, 1, 1, 1, 0, 1, 1, 1, 1};
 
     outputRows = inputRows;
     outputCols = inputCols;
 
     output = (T *)calloc(outputRows * outputCols, sizeof(T));
 
-    centerRow = kernelRows / 2;
-    centerCol = kernelCols / 2;
+    centerRow = KERNEL_ROWS / 2;
+    centerCol = KERNEL_COLS / 2;
 
     for (int i = 0; i < inputRows; i++) {
         for (int j = 0; j < inputCols; j++) {
-            for (int kr = 0; kr < kernelRows; kr++) {
-                for (int kc = 0; kc < kernelCols; kc++) {
+            for (int kr = 0; kr < KERNEL_ROWS; kr++) {
+                for (int kc = 0; kc < KERNEL_COLS; kc++) {
                     int or = i - centerRow + kr;
                     int oc = j - centerCol + kc;
 
                     if (or >= 0 && or < outputRows && oc >= 0 && oc < outputCols)
                         output[i * outputCols + j] +=
-                            input[or * inputCols + oc] * kernel[kr * kernelCols + kc];
+                            input[or * inputCols + oc] * kernel[kr * KERNEL_COLS + kc];
                 }
             }
         }
@@ -136,8 +137,6 @@ int main(int argc, char *argv[]) {
     T *output;
     int outputRows, outputCols;
 
-    T *kernel;
-
     int count;
 
     if (argc != 2) {
@@ -147,18 +146,12 @@ int main(int argc, char *argv[]) {
 
     const char *filename = argv[1];
 
-    kernel = (T *)malloc(KERNEL_ROWS * KERNEL_COLS * sizeof(T));
-    for (int i = 0; i < KERNEL_ROWS * KERNEL_COLS; i++)
-        kernel[i] = 1;
-    kernel[4] = 0;
-
     map = read(filename, &len);
     input = preprocess(map, len, &inputRows, &inputCols);
 
-    output = convolve(input, inputRows, inputCols, kernel, KERNEL_ROWS, KERNEL_COLS);
+    output = convolve(input, inputRows, inputCols);
     outputRows = inputRows;
     outputCols = inputCols;
-
     count = tally(output, input, outputRows, outputCols);
 
     printf("%d\n", count);
@@ -166,7 +159,6 @@ int main(int argc, char *argv[]) {
     free(map);
     free(input);
     free(output);
-    free(kernel);
 
     return 0;
 }
