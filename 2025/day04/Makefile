@@ -1,22 +1,35 @@
-CFLAGS = -O3 -fno-vectorize -g
-CFLAGS_DEBUG = $(CFLAGS) -g -DDEBUG
+CC          = clang
+OUTDIR      = out
+SRC_DIR     = src
 
-part1a:
-	mkdir -p out
-	clang $(CFLAGS) -o out/part1a src/part1a.c
+BASE_CFLAGS = -O3 -fno-vectorize
+CFLAGS      = $(BASE_CFLAGS) -g
+CFLAGS_DEBUG = $(BASE_CFLAGS) -g -DDEBUG
 
-part1a-debug:
-	mkdir -p out
-	clang $(CFLAGS_DEBUG) -o out/part1a-debug src/part1a.c
+# List of programs (without extension or path)
+PROGRAMS = part1a part1b
 
-part1b:
-	mkdir -p out
-	clang $(CFLAGS) -o out/part1b src/part1b.c
+# Default target: build all release binaries
+all: $(PROGRAMS:%=$(OUTDIR)/%)
 
-part1b-debug:
-	mkdir -p out
-	clang $(CFLAGS_DEBUG) -o out/part1b-debug src/part1b.c
+# Individual targets for convenience
+part1a: $(OUTDIR)/part1a
+part1b: $(OUTDIR)/part1b
+part1a-debug: $(OUTDIR)/part1a-debug
+part1b-debug: $(OUTDIR)/part1b-debug
+
+# Pattern rule for normal builds
+$(OUTDIR)/%: $(SRC_DIR)/%.c | $(OUTDIR)
+	$(CC) $(CFLAGS) -o $@ $<
+
+# Pattern rule for debug builds
+$(OUTDIR)/%-debug: $(SRC_DIR)/%.c | $(OUTDIR)
+	$(CC) $(CFLAGS_DEBUG) -o $@ $<
+
+# Ensure output directory exists (order-only prerequisite)
+$(OUTDIR):
+	mkdir -p $(OUTDIR)
 
 .PHONY: clean
 clean:
-	rm -f out/*
+	rm -f $(OUTDIR)/*
