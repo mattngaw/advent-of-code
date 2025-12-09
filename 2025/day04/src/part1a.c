@@ -11,32 +11,32 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#define KERNEL_ROWS (3)
-#define KERNEL_COLS (3)
-#define LIMIT (4)
-
 #ifdef DEBUG
 #define NOINLINE __attribute__((noinline))
 #else
 #define NOINLINE
 #endif
 
-typedef int T;
+#define LIMIT (4)
+
+#define KERNEL_ROWS (3)
+#define KERNEL_COLS (3)
+
+typedef unsigned char T;
 
 NOINLINE char *read(const char *filename, size_t *len) {
     FILE *fptr;
     char *map;
-    size_t file_size;
-    size_t bytes_read;
+    size_t fileSize;
 
     fptr = fopen(filename, "rt");
     fseek(fptr, 0, SEEK_END);
-    file_size = ftell(fptr);
+    fileSize = ftell(fptr);
     fseek(fptr, 0, SEEK_SET);
 
-    map = (char *)malloc(file_size + 1);
-    *len = fread(map, sizeof(char), file_size, fptr);
-    map[file_size] = '\0';
+    map = (char *)malloc(fileSize + 1);
+    *len = fread(map, sizeof(char), fileSize, fptr);
+    map[fileSize] = '\0';
 
     fclose(fptr);
 

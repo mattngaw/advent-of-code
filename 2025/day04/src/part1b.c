@@ -67,20 +67,25 @@ NOINLINE T *preprocess(char *map, size_t len, int *inputRows, int *inputCols) {
         cols++;
     }
 
-    for (size_t i = 0; i < len; i++) {
-        rows += map[i] == '\n';
-    }
+    rows = len / (cols + 1);
 
     r = 1;
     c = 1;
     paddedRows = rows + 2;
     paddedCols = cols + 2;
     input = (T *)malloc(paddedRows * paddedCols * sizeof(T));
-    for (size_t i = 0; i < len; i++) {
-        int newline = map[i] == '\n';
-        r += newline;
-        input[r * paddedCols + c] = map[i] == '@';
-        c = newline ? 1 : c + 1;
+    for (size_t i = 0; i < paddedCols; i++) {
+        input[i] = 0;
+        input[(paddedRows - 1) * paddedCols + i] = 0;
+    }
+    for (size_t i = 0; i < paddedRows; i++) {
+        input[paddedCols * i] = 0;
+        input[(paddedCols - 1) * i + (paddedCols + 1)] = 0;
+    }
+    for (size_t i = 0, pi = 1; i < rows; i++, pi++) {
+        for (size_t j = 0, pj = 1; j < cols; j++, pj++) {
+            input[pi * paddedCols + pj] = map[i * (cols + 1) + j] == '@';
+        }
     }
 
     *inputRows = paddedRows;
@@ -89,28 +94,18 @@ NOINLINE T *preprocess(char *map, size_t len, int *inputRows, int *inputCols) {
 }
 
 NOINLINE int convolve(T *input, int inputRows, int inputCols) {
-    int centerRow, centerCol;
     int count;
     int result;
-
-    T kernel[KERNEL_ROWS * KERNEL_COLS] = {1, 1, 1, 1, 0, 1, 1, 1, 1};
-
-    centerRow = KERNEL_ROWS / 2;
-    centerCol = KERNEL_COLS / 2;
 
     result = 0;
 
     for (int ir = 1; ir < inputRows - 1; ir++) {
         for (int ic = 1; ic < inputCols - 1; ic++) {
-            count = 0;
-            for (int kr = 0; kr < KERNEL_ROWS; kr++) {
-                for (int kc = 0; kc < KERNEL_COLS; kc++) {
-                    int xr = ir + kr - centerRow;
-                    int xc = ic + kc - centerCol;
-
-                    count += input[xr * inputCols + xc] * kernel[kr * KERNEL_COLS + kc];
-                }
-            }
+            count =
+                input[(ir - 1) * inputCols + (ic - 1)] + input[(ir - 1) * inputCols + (ic + 1)] +
+                input[(ir - 1) * inputCols + (ic + 0)] + input[(ir + 0) * inputCols + (ic - 1)] +
+                input[(ir + 0) * inputCols + (ic + 1)] + input[(ir + 1) * inputCols + (ic - 1)] +
+                input[(ir + 1) * inputCols + (ic + 1)] + input[(ir + 1) * inputCols + (ic + 0)];
             result += input[ir * inputCols + ic] && count < LIMIT;
         }
     }
@@ -128,7 +123,7 @@ int main(int argc, char *argv[]) {
     int result;
 
     if (argc != 2) {
-        printf("Usage: ./part1a <input-path>\n");
+        printf("Usage: ./part1b <input-path>\n");
         return 1;
     }
 

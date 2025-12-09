@@ -1,56 +1,158 @@
-2,3c2,3
+2,3c2,4
 <  * @file part1a.c
 <  * @brief A single-threaded, convolution-based implementation of AoC 2025 Day 4 Part 1
 ---
 >  * @file part1b.c
->  * @brief A zero-padded improvement over part1a that removes the conditional from the inner loop
-5,7c5,11
+>  * @brief A mostly-branchless improvement over part1a that removes many conditionals, resulting in a
+>  * 6x speedup (on my machine)
+5,7c6,18
 <  * This implementation uses a convolution to transform the input image into an image describing the
 <  * number of rolls surrounding each roll. This intermediate image is then scanned for rolls with
 <  * less than four neighbors.
 ---
 >  * The previous implementation requires a complex conditional check in the innermost (and hottest)
->  * loop to ensure that the exterior of the image is interpreted as empty space (no rolls).
+>  * convolve loop to ensure that the exterior of the image is interpreted as empty space (no rolls).
 >  * Surrounding the original image with a perimeter of zeroes allows the inner conditional to be
 >  * removed.
 >  *
 >  * Since the image has now been transformed from NxN to (N+2)x(N+2), the memory access patterns of
 >  * some other loops have also changed.
-47a52
->     int padded_rows, padded_cols;
-63,65c68,72
+>  *
+>  * The preprocess function was also rewritten in a branchless way, relying heavily on
+>  * bitwise/logical operators and conditional moves.
+>  *
+>  * The counting of candidate rolls (previously tally) was rolled into the main loop of the convolve
+>  * function.
+47a59
+>     int paddedRows, paddedCols;
+58,83c70
+<     for (size_t i = 0; i < len; i++) {
+<         if (map[i] == '\n')
+<             rows++;
+<     }
+< 
 <     r = 0;
 <     c = 0;
 <     input = (T *)calloc(rows * cols, sizeof(T));
----
->     r = 1;
->     c = 1;
->     padded_rows = rows + 2;
->     padded_cols = cols + 2;
->     input = (T *)calloc(padded_rows * padded_cols, sizeof(T));
-68c75
+<     for (size_t i = 0; i < len; i++) {
+<         if (map[i] == '\n') {
 <             c = 0;
----
->             c = 1;
-71,75c78,79
+<             r++;
+<         } else {
 <             if (map[i] == '@') {
 <                 input[r * cols + c] = 1;
 <             } else {
 <                 input[r * cols + c] = 0;
 <             }
----
->             if (map[i] == '@')
->                 input[r * padded_cols + c] = 1;
-80,81c84,85
+<             c++;
+<         }
+<     }
+< 
 <     *inputRows = rows;
 <     *inputCols = cols;
+<     return input;
+< }
 ---
->     *inputRows = padded_rows;
->     *inputCols = padded_cols;
-106,108c110,111
+>     rows = len / (cols + 1);
+85,111c72,87
+< NOINLINE T *convolve(T *input, int inputRows, int inputCols) {
+<     int outputRows, outputCols;
+<     T *output;
+<     int centerRow, centerCol;
+< 
+<     T kernel[KERNEL_ROWS * KERNEL_COLS] = {1, 1, 1, 1, 0, 1, 1, 1, 1};
+< 
+<     outputRows = inputRows;
+<     outputCols = inputCols;
+< 
+<     output = (T *)calloc(outputRows * outputCols, sizeof(T));
+< 
+<     centerRow = KERNEL_ROWS / 2;
+<     centerCol = KERNEL_COLS / 2;
+< 
+<     for (int i = 0; i < inputRows; i++) {
+<         for (int j = 0; j < inputCols; j++) {
+<             for (int kr = 0; kr < KERNEL_ROWS; kr++) {
+<                 for (int kc = 0; kc < KERNEL_COLS; kc++) {
+<                     int or = i - centerRow + kr;
+<                     int oc = j - centerCol + kc;
+< 
 <                     if (or >= 0 && or < outputRows && oc >= 0 && oc < outputCols)
 <                         output[i * outputCols + j] +=
-<                             input[or * inputCols + oc] * kernel[kr * kernelCols + kc];
+<                             input[or * inputCols + oc] * kernel[kr * KERNEL_COLS + kc];
+<                 }
+<             }
 ---
->                     output[i * outputCols + j] +=
->                         input[or * inputCols + oc] * kernel[kr * kernelCols + kc];
+>     r = 1;
+>     c = 1;
+>     paddedRows = rows + 2;
+>     paddedCols = cols + 2;
+>     input = (T *)malloc(paddedRows * paddedCols * sizeof(T));
+>     for (size_t i = 0; i < paddedCols; i++) {
+>         input[i] = 0;
+>         input[(paddedRows - 1) * paddedCols + i] = 0;
+>     }
+>     for (size_t i = 0; i < paddedRows; i++) {
+>         input[paddedCols * i] = 0;
+>         input[(paddedCols - 1) * i + (paddedCols + 1)] = 0;
+>     }
+>     for (size_t i = 0, pi = 1; i < rows; i++, pi++) {
+>         for (size_t j = 0, pj = 1; j < cols; j++, pj++) {
+>             input[pi * paddedCols + pj] = map[i * (cols + 1) + j] == '@';
+115c91,93
+<     return output;
+---
+>     *inputRows = paddedRows;
+>     *inputCols = paddedCols;
+>     return input;
+118c96
+< NOINLINE int tally(T *output, T *input, int outputRows, int outputCols) {
+---
+> NOINLINE int convolve(T *input, int inputRows, int inputCols) {
+119a98
+>     int result;
+121,124c100,110
+<     count = 0;
+<     for (int i = 0; i < outputRows * outputCols; i++) {
+<         if (output[i] < LIMIT && input[i])
+<             count++;
+---
+>     result = 0;
+> 
+>     for (int ir = 1; ir < inputRows - 1; ir++) {
+>         for (int ic = 1; ic < inputCols - 1; ic++) {
+>             count =
+>                 input[(ir - 1) * inputCols + (ic - 1)] + input[(ir - 1) * inputCols + (ic + 1)] +
+>                 input[(ir - 1) * inputCols + (ic + 0)] + input[(ir + 0) * inputCols + (ic - 1)] +
+>                 input[(ir + 0) * inputCols + (ic + 1)] + input[(ir + 1) * inputCols + (ic - 1)] +
+>                 input[(ir + 1) * inputCols + (ic + 1)] + input[(ir + 1) * inputCols + (ic + 0)];
+>             result += input[ir * inputCols + ic] && count < LIMIT;
+>         }
+127c113
+<     return count;
+---
+>     return result;
+137,140c123
+<     T *output;
+<     int outputRows, outputCols;
+< 
+<     int count;
+---
+>     int result;
+143c126
+<         printf("Usage: ./part1a <input-path>\n");
+---
+>         printf("Usage: ./part1b <input-path>\n");
+150a134
+>     result = convolve(input, inputRows, inputCols);
+152,157c136
+<     output = convolve(input, inputRows, inputCols);
+<     outputRows = inputRows;
+<     outputCols = inputCols;
+<     count = tally(output, input, outputRows, outputCols);
+< 
+<     printf("%d\n", count);
+---
+>     printf("%d\n", result);
+161d139
+<     free(output);
