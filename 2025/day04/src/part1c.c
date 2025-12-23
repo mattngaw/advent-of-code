@@ -94,19 +94,10 @@ NOINLINE T *preprocess(int numThreads, char *map, size_t len, int *inputRows, in
     paddedRows = rows + 2;
     paddedCols = cols + 2;
 
-    input = (T *)malloc(paddedRows * paddedCols * sizeof(T));
+    input = (T *)calloc(paddedRows * paddedCols, sizeof(T));
 
     rowsPerThread = rows / numThreads;
     firstAdditionalRows = rows % numThreads;
-
-    for (size_t i = 0; i < paddedCols; i++) {
-        input[i] = 0;
-        input[(paddedRows - 1) * paddedCols + i] = 0;
-    }
-    for (size_t i = 0; i < paddedRows; i++) {
-        input[paddedCols * i] = 0;
-        input[(paddedCols - 1) * i + (paddedCols + 1)] = 0;
-    }
 
     pthread_t *threads = malloc(numThreads * sizeof(pthread_t));
     PreprocessArgs *args = malloc(numThreads * sizeof(PreprocessArgs));
@@ -162,12 +153,18 @@ void *convolveThread(void *args) {
 
     for (int ir = startRow; ir < startRow + rows; ir++) {
         for (int ic = 1; ic < inputCols - 1; ic++) {
-            count =
-                input[(ir - 1) * inputCols + (ic - 1)] + input[(ir - 1) * inputCols + (ic + 1)] +
-                input[(ir - 1) * inputCols + (ic + 0)] + input[(ir + 0) * inputCols + (ic - 1)] +
-                input[(ir + 0) * inputCols + (ic + 1)] + input[(ir + 1) * inputCols + (ic - 1)] +
-                input[(ir + 1) * inputCols + (ic + 1)] + input[(ir + 1) * inputCols + (ic + 0)];
-            result += input[ir * inputCols + ic] && count < LIMIT;
+            {
+                count = input[(ir - 1) * inputCols + (ic - 1)] +
+                        input[(ir - 1) * inputCols + (ic + 1)] +
+                        input[(ir - 1) * inputCols + (ic + 0)] +
+                        input[(ir + 0) * inputCols + (ic - 1)] +
+                        !input[(ir + 0) * inputCols + (ic + 0)] * LIMIT +
+                        input[(ir + 0) * inputCols + (ic + 1)] +
+                        input[(ir + 1) * inputCols + (ic - 1)] +
+                        input[(ir + 1) * inputCols + (ic + 1)] +
+                        input[(ir + 1) * inputCols + (ic + 0)];
+                result += count < LIMIT;
+            }
         }
     }
 

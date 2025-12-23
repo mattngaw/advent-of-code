@@ -73,15 +73,7 @@ NOINLINE T *preprocess(char *map, size_t len, int *inputRows, int *inputCols) {
     c = 1;
     paddedRows = rows + 2;
     paddedCols = cols + 2;
-    input = (T *)malloc(paddedRows * paddedCols * sizeof(T));
-    for (size_t i = 0; i < paddedCols; i++) {
-        input[i] = 0;
-        input[(paddedRows - 1) * paddedCols + i] = 0;
-    }
-    for (size_t i = 0; i < paddedRows; i++) {
-        input[paddedCols * i] = 0;
-        input[(paddedCols - 1) * i + (paddedCols + 1)] = 0;
-    }
+    input = (T *)calloc(paddedRows * paddedCols, sizeof(T));
     for (size_t i = 0, pi = 1; i < rows; i++, pi++) {
         for (size_t j = 0, pj = 1; j < cols; j++, pj++) {
             input[pi * paddedCols + pj] = map[i * (cols + 1) + j] == '@';
@@ -104,9 +96,10 @@ NOINLINE int convolve(T *input, int inputRows, int inputCols) {
             count =
                 input[(ir - 1) * inputCols + (ic - 1)] + input[(ir - 1) * inputCols + (ic + 1)] +
                 input[(ir - 1) * inputCols + (ic + 0)] + input[(ir + 0) * inputCols + (ic - 1)] +
+                !input[(ir + 0) * inputCols + (ic + 0)] * LIMIT +
                 input[(ir + 0) * inputCols + (ic + 1)] + input[(ir + 1) * inputCols + (ic - 1)] +
                 input[(ir + 1) * inputCols + (ic + 1)] + input[(ir + 1) * inputCols + (ic + 0)];
-            result += input[ir * inputCols + ic] && count < LIMIT;
+            result += count < LIMIT;
         }
     }
 

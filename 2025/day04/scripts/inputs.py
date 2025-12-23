@@ -1,3 +1,7 @@
+"""
+AI note: this script was written by GPT 5.1 and it has served me well
+"""
+
 import random
 import argparse
 

@@ -7,7 +7,7 @@ CFLAGS       = $(BASE_CFLAGS) -g
 CFLAGS_DEBUG = $(BASE_CFLAGS) -g -DDEBUG
 
 # List of programs (without extension or path)
-PROGRAMS = part1a part1b part1c
+PROGRAMS = part1a part1b part1c part1d
 
 # --------------------------------------------------------------------
 # Target-specific extra flags
@@ -28,9 +28,11 @@ all: $(PROGRAMS:%=$(OUT_DIR)/%)
 part1a: $(OUT_DIR)/part1a
 part1b: $(OUT_DIR)/part1b
 part1c: $(OUT_DIR)/part1c
+part1d: $(OUT_DIR)/part1d
 part1a-debug: $(OUT_DIR)/part1a-debug
 part1b-debug: $(OUT_DIR)/part1b-debug
 part1c-debug: $(OUT_DIR)/part1c-debug
+part1d-debug: $(OUT_DIR)/part1d-debug
 
 # Pattern rule for normal builds
 # $* is the stem (e.g. "part1c"), so CFLAGS_$* expands to CFLAGS_part1c

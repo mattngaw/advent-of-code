@@ -97,15 +97,15 @@ NOINLINE T *convolve(T *input, int inputRows, int inputCols) {
     centerRow = KERNEL_ROWS / 2;
     centerCol = KERNEL_COLS / 2;
 
-    for (int i = 0; i < inputRows; i++) {
-        for (int j = 0; j < inputCols; j++) {
+    for (int ir = 0; ir < inputRows; ir++) {
+        for (int ic = 0; ic < inputCols; ic++) {
             for (int kr = 0; kr < KERNEL_ROWS; kr++) {
                 for (int kc = 0; kc < KERNEL_COLS; kc++) {
-                    int or = i - centerRow + kr;
-                    int oc = j - centerCol + kc;
+                    int or = ir - centerRow + kr;
+                    int oc = ic - centerCol + kc;
 
                     if (or >= 0 && or < outputRows && oc >= 0 && oc < outputCols)
-                        output[i * outputCols + j] +=
+                        output[ir * outputCols + ic] +=
                             input[or * inputCols + oc] * kernel[kr * KERNEL_COLS + kc];
                 }
             }
